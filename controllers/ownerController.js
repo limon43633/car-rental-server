@@ -3,6 +3,7 @@ import imageKit from "../configs/imageKit.js";
 import User from "../models/User.js";
 import fs from 'fs';
 import Car from "../models/Car.js";
+import Booking from "../models/Booking.js";
 
 // Api to change role of user
 export const changeRoleToOwner = async (req, res) => {
@@ -131,6 +132,66 @@ export const getDashboardData = async (req, res) => {
         }
 
         const cars = await Car.find({owner: _id})
+        const bookings = await Booking.find({owner: _id}).populate('car').sort({createdAt: -1})
+
+        const pendingBookings = await Booking.find({owner: _id, status: "pending"})
+        const completedBookings = await Booking.find({owner: _id, status: "confirmed"})
+
+        // Calculate monthly revenue from bookings where status is confirmed
+        const monthlyRevenue = bookings.slice().filter(bookings => booking.status === 'confirmed').reduce((acc, booking)=> acc + booking.price, 0)
+
+        const dashboardData = {
+            totalCars: cars.length,
+            totalBookings: bookings.length,
+            pendingBookings: pendingBookings.length,
+            completedBookings: completedBookings.length,
+            recentBookings: bookings.slice(0,3),
+            monthlyRevenue
+        }
+
+        res.json({ success: true, dashboardData });
+
+
+    } catch (error) {
+        console.log(error.message);
+        res.json({success: false, message: error.message})
+    }
+}
+
+
+
+// API to update user image
+export const updateUserImage = async (req, res) => {
+    try {
+        const {_id} = req.user;
+
+        const imageFile = req.file;
+
+        // Upload image to image kit
+        const fileBuffer = fs.readFileSync(imageFile.path)
+        const response = await imageKit.upload({
+            file: fileBuffer,
+            fileName: imageFile.originalname,
+            folder: '/users'
+        })
+
+        // optimization through imageKit URL transformation
+        var optimizedImageUrl = imageKit.url({
+            path : response.filePath,
+            transformation : [
+                {width: '400'}, // width resizing
+                {quality: 'auto'}, // Auto compression
+                { format: 'webp' } // Convert to modern format
+            ]
+        });
+
+
+        const image = optimizedImageUrl;
+
+        await User.findByIdAndUpdate(_id, {image});
+        res.json({success: true, message: 'Image Updated'})
+
+
     } catch (error) {
         console.log(error.message);
         res.json({success: false, message: error.message})
