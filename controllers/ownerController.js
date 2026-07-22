@@ -138,7 +138,7 @@ export const getDashboardData = async (req, res) => {
         const completedBookings = await Booking.find({owner: _id, status: "confirmed"})
 
         // Calculate monthly revenue from bookings where status is confirmed
-        const monthlyRevenue = bookings.slice().filter(bookings => booking.status === 'confirmed').reduce((acc, booking)=> acc + booking.price, 0)
+        const monthlyRevenue = bookings.slice().filter(booking => booking.status === 'confirmed').reduce((acc, booking)=> acc + booking.price, 0)
 
         const dashboardData = {
             totalCars: cars.length,
